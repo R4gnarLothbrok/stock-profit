@@ -1,0 +1,471 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Stock Profit Checker</title>
+  <!-- PWA: makes the app installable on Android/iOS -->
+  <link rel="manifest" href="manifest.json"/>
+  <meta name="theme-color" content="#00e5b0"/>
+  <meta name="mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-capable" content="yes"/>
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent"/>
+  <meta name="apple-mobile-web-app-title" content="StockProfit"/>
+  <link rel="apple-touch-icon" href="icon-192.png"/>
+  <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;600&family=Syne:wght@400;700;800&display=swap" rel="stylesheet"/>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg:      #080c12;
+    --panel:   #0d1420;
+    --border:  #1e2d3d;
+    --accent:  #00e5b0;
+    --gain:    #00e676;
+    --loss:    #ff4f4f;
+    --text:    #e2eaf4;
+    --muted:   #4a6480;
+    --mono:    'JetBrains Mono', monospace;
+    --sans:    'Syne', sans-serif;
+  }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--sans);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 2rem 1rem;
+    background-image:
+      linear-gradient(var(--border) 1px, transparent 1px),
+      linear-gradient(90deg, var(--border) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .card {
+    background: var(--panel);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    padding: 2rem;
+    width: 100%;
+    max-width: 420px;
+  }
+
+  /* ── Header ── */
+  .header {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 1.75rem;
+  }
+
+  .logo { color: var(--accent); font-size: 1.4rem; }
+
+  h1 {
+    font-size: 1rem;
+    font-weight: 800;
+    letter-spacing: 0.15em;
+    text-transform: uppercase;
+  }
+
+  /* ── API key row ── */
+  .key-row {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+    align-items: center;
+  }
+
+  .key-dot {
+    width: 8px; height: 8px;
+    border-radius: 50%;
+    background: var(--loss);
+    flex-shrink: 0;
+    transition: background 0.3s;
+  }
+  .key-dot.ok { background: var(--gain); }
+
+  .key-input {
+    flex: 1;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    padding: 0.5rem 0.75rem;
+    letter-spacing: 0.04em;
+  }
+  .key-input:focus { outline: none; border-color: var(--accent); }
+  .key-input::placeholder { color: var(--muted); }
+
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--muted);
+    border-radius: 7px;
+    font-family: var(--sans);
+    font-size: 0.68rem;
+    font-weight: 700;
+    letter-spacing: 0.1em;
+    padding: 0.5rem 0.8rem;
+    cursor: pointer;
+    white-space: nowrap;
+    transition: all 0.15s;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── Divider ── */
+  .divider {
+    border: none;
+    border-top: 1px solid var(--border);
+    margin: 0 0 1.5rem;
+  }
+
+  /* ── Form fields ── */
+  .fields { display: flex; flex-direction: column; gap: 0.75rem; margin-bottom: 1.25rem; }
+
+  .field { display: flex; flex-direction: column; gap: 0.3rem; }
+
+  label {
+    font-size: 0.62rem;
+    letter-spacing: 0.18em;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+  }
+
+  input[type=text], input[type=number] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    color: var(--text);
+    font-family: var(--mono);
+    font-size: 1rem;
+    padding: 0.65rem 0.9rem;
+    transition: border-color 0.15s;
+    width: 100%;
+  }
+  input:focus { outline: none; border-color: var(--accent); }
+  input::placeholder { color: var(--muted); font-size: 0.85rem; }
+
+  /* ── Check button ── */
+  .btn-check {
+    width: 100%;
+    background: var(--accent);
+    color: #000;
+    border: none;
+    border-radius: 8px;
+    font-family: var(--sans);
+    font-weight: 800;
+    font-size: 0.85rem;
+    letter-spacing: 0.15em;
+    padding: 0.85rem;
+    cursor: pointer;
+    transition: opacity 0.15s, transform 0.1s;
+    margin-bottom: 1.25rem;
+  }
+  .btn-check:hover   { opacity: 0.88; }
+  .btn-check:active  { transform: scale(0.98); }
+  .btn-check:disabled { opacity: 0.35; cursor: not-allowed; }
+
+  /* ── Error ── */
+  .error {
+    font-size: 0.78rem;
+    color: var(--loss);
+    text-align: center;
+    margin-bottom: 1rem;
+    min-height: 1.1em;
+    font-family: var(--mono);
+  }
+
+  /* ── Results ── */
+  .results {
+    display: none;
+    flex-direction: column;
+    gap: 0.6rem;
+    animation: fadeUp 0.3s ease;
+  }
+  .results.show { display: flex; }
+
+  @keyframes fadeUp {
+    from { opacity: 0; transform: translateY(8px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+
+  .box {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 9px;
+    padding: 0.9rem 1.1rem;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .box::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--accent), transparent);
+    opacity: 0.4;
+  }
+
+  .box-label {
+    font-size: 0.58rem;
+    letter-spacing: 0.2em;
+    color: var(--muted);
+    font-weight: 700;
+    text-transform: uppercase;
+    margin-bottom: 0.3rem;
+  }
+
+  .box-value {
+    font-family: var(--mono);
+    font-size: 1.45rem;
+    font-weight: 600;
+    line-height: 1;
+  }
+
+  .box-sub {
+    font-family: var(--mono);
+    font-size: 0.72rem;
+    color: var(--muted);
+    margin-top: 0.25rem;
+  }
+
+  .box-row { display: grid; grid-template-columns: 1fr 1fr; gap: 0.6rem; }
+
+  .gain  { color: var(--gain); }
+  .loss  { color: var(--loss); }
+
+  .box-gain::before { background: linear-gradient(90deg, transparent, var(--gain), transparent); }
+  .box-loss::before { background: linear-gradient(90deg, transparent, var(--loss), transparent); }
+
+  /* ── Spinner ── */
+  .spinner {
+    display: none;
+    width: 18px; height: 18px;
+    border: 2px solid #333;
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    margin: 0 auto 1rem;
+  }
+  .spinner.show { display: block; }
+
+  @keyframes spin { to { transform: rotate(360deg); } }
+</style>
+</head>
+<body>
+
+<div class="card">
+
+  <!-- Header -->
+  <div class="header">
+    <span class="logo">◈</span>
+    <h1>Stock Profit</h1>
+  </div>
+
+  <!-- API Key row -->
+  <div class="key-row">
+    <div class="key-dot" id="key-dot"></div>
+    <input class="key-input" id="key-input" type="text"
+      placeholder="Twelve Data API key…" autocomplete="off" spellcheck="false"/>
+    <button class="btn-sm" id="btn-key">SAVE</button>
+  </div>
+
+  <hr class="divider"/>
+
+  <!-- Stock inputs -->
+  <div class="fields">
+    <div class="field">
+      <label for="ticker">Ticker Symbol</label>
+      <input id="ticker" type="text" placeholder="AAPL" maxlength="10"/>
+    </div>
+    <div class="box-row">
+      <div class="field">
+        <label for="buy-price">Buy Price ($)</label>
+        <input id="buy-price" type="number" placeholder="150.00" min="0.01" step="any"/>
+      </div>
+      <div class="field">
+        <label for="shares">Shares Owned</label>
+        <input id="shares" type="number" placeholder="10" min="0.001" step="any"/>
+      </div>
+    </div>
+  </div>
+
+  <button class="btn-check" id="btn-check">CHECK PROFIT</button>
+
+  <div class="error" id="error"></div>
+  <div class="spinner" id="spinner"></div>
+
+  <!-- Results -->
+  <div class="results" id="results">
+
+    <div class="box-row">
+      <div class="box">
+        <div class="box-label">Invested</div>
+        <div class="box-value" id="r-invested">—</div>
+        <div class="box-sub" id="r-shares-info">— shares</div>
+      </div>
+      <div class="box">
+        <div class="box-label">Current Value</div>
+        <div class="box-value" id="r-value">—</div>
+        <div class="box-sub" id="r-price-info">@ $—</div>
+      </div>
+    </div>
+
+    <div class="box" id="r-gain-box">
+      <div class="box-label">Profit / Loss (£)</div>
+      <div class="box-value" id="r-gain">—</div>
+      <div class="box-sub" id="r-gain-sub">—</div>
+    </div>
+
+    <div class="box-row">
+      <div class="box">
+        <div class="box-label">USD → GBP</div>
+        <div class="box-value" id="r-fx" style="font-size:1rem">—</div>
+        <div class="box-sub">live rate</div>
+      </div>
+      <div class="box">
+        <div class="box-label">Gain %</div>
+        <div class="box-value" id="r-pct">—</div>
+        <div class="box-sub">return on investment</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<script>
+  const API_KEY_STORE = 'td_api_key';
+
+  // ── On load: restore saved key ──────────────────────
+  window.addEventListener('DOMContentLoaded', () => {
+    const saved = localStorage.getItem(API_KEY_STORE);
+    if (saved) {
+      document.getElementById('key-input').value = saved;
+      setKeyDot(true);
+    }
+
+    document.getElementById('btn-key').addEventListener('click', saveKey);
+    document.getElementById('key-input').addEventListener('keydown', e => { if (e.key === 'Enter') saveKey(); });
+    document.getElementById('btn-check').addEventListener('click', checkProfit);
+    document.getElementById('ticker').addEventListener('keydown', e => { if (e.key === 'Enter') checkProfit(); });
+    document.getElementById('ticker').addEventListener('input', e => { e.target.value = e.target.value.toUpperCase(); });
+  });
+
+  function saveKey() {
+    const key = document.getElementById('key-input').value.trim();
+    if (!key) return;
+    localStorage.setItem(API_KEY_STORE, key);
+    setKeyDot(true);
+  }
+
+  function setKeyDot(ok) {
+    document.getElementById('key-dot').className = 'key-dot' + (ok ? ' ok' : '');
+  }
+
+  // ── Main logic ──────────────────────────────────────
+  async function checkProfit() {
+    const key       = localStorage.getItem(API_KEY_STORE) || document.getElementById('key-input').value.trim();
+    const ticker    = document.getElementById('ticker').value.trim().toUpperCase();
+    const buyPrice  = parseFloat(document.getElementById('buy-price').value);
+    const shares    = parseFloat(document.getElementById('shares').value);
+
+    // Validate
+    if (!key)                          return showError('Save your Twelve Data API key first.');
+    if (!ticker)                       return showError('Enter a ticker symbol.');
+    if (isNaN(buyPrice) || buyPrice <= 0) return showError('Enter a valid buy price.');
+    if (isNaN(shares)   || shares   <= 0) return showError('Enter a valid number of shares.');
+
+    showError('');
+    setLoading(true);
+
+    try {
+      // Fetch current price + FX rate at the same time
+      const [priceData, fxData] = await Promise.all([
+        fetch(`https://api.twelvedata.com/price?symbol=${ticker}&apikey=${key}`).then(r => r.json()),
+        fetch('https://open.er-api.com/v6/latest/USD').then(r => r.json())
+      ]);
+
+      // Check for API errors
+      if (priceData.status === 'error' || priceData.code) {
+        throw new Error(priceData.message || 'Could not fetch price. Check your API key and ticker.');
+      }
+
+      const currentPrice = parseFloat(priceData.price);
+      if (isNaN(currentPrice)) throw new Error('No price returned for ' + ticker);
+
+      const fxRate = fxData?.rates?.GBP || 0.79;
+
+      // Calculations
+      const invested    = shares * buyPrice;
+      const currentVal  = shares * currentPrice;
+      const gainUsd     = currentVal - invested;
+      const gainGbp     = gainUsd * fxRate;
+      const gainPct     = (gainUsd / invested) * 100;
+      const isGain      = gainGbp >= 0;
+
+      // Render
+      document.getElementById('r-invested').textContent    = fmt$(invested);
+      document.getElementById('r-shares-info').textContent = `${shares} shares @ ${fmt$(buyPrice)}`;
+      document.getElementById('r-value').textContent       = fmt$(currentVal);
+      document.getElementById('r-price-info').textContent  = `current ${fmt$(currentPrice)}`;
+      document.getElementById('r-fx').textContent          = `£1 = $${(1/fxRate).toFixed(4)}`;
+
+      const gainEl  = document.getElementById('r-gain');
+      const gainBox = document.getElementById('r-gain-box');
+      const pctEl   = document.getElementById('r-pct');
+      const subEl   = document.getElementById('r-gain-sub');
+
+      gainEl.textContent  = fmtGbp(gainGbp);
+      gainEl.className    = 'box-value ' + (isGain ? 'gain' : 'loss');
+      gainBox.className   = 'box ' + (isGain ? 'box-gain' : 'box-loss');
+      subEl.textContent   = `${isGain ? '+' : ''}${fmt$(gainUsd)} USD`;
+
+      pctEl.textContent   = (gainPct >= 0 ? '+' : '') + gainPct.toFixed(2) + '%';
+      pctEl.className     = 'box-value ' + (isGain ? 'gain' : 'loss');
+
+      document.getElementById('results').classList.add('show');
+
+    } catch (err) {
+      showError('⚠ ' + err.message);
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  // ── Helpers ─────────────────────────────────────────
+  function fmt$(n) {
+    return new Intl.NumberFormat('en-US', { style: 'currency', currency: 'USD', minimumFractionDigits: 2 }).format(n);
+  }
+
+  function fmtGbp(n) {
+    const abs  = Math.abs(n);
+    const sign = n < 0 ? '-' : '';
+    return sign + new Intl.NumberFormat('en-GB', { style: 'currency', currency: 'GBP', minimumFractionDigits: 2 }).format(abs);
+  }
+
+  function showError(msg) {
+    document.getElementById('error').textContent = msg;
+  }
+
+  function setLoading(on) {
+    document.getElementById('spinner').className   = 'spinner' + (on ? ' show' : '');
+    document.getElementById('btn-check').disabled  = on;
+    document.getElementById('btn-check').textContent = on ? 'FETCHING…' : 'CHECK PROFIT';
+  }
+</script>
+
+<script>
+  if ('serviceWorker' in navigator) {
+    navigator.serviceWorker.register('service-worker.js');
+  }
+</script>
+</body>
+</html>
